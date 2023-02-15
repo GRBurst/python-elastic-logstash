@@ -34,6 +34,7 @@ class ElasticHandler(logging.Handler):
 
         url = self.url + '/' + self.elastic_index + '/_doc/' + str(uuid.uuid1())
 
+        raw_response = None
         response, log_entry = '', self.format(record)
 
         if isinstance(log_entry, str):
@@ -56,7 +57,9 @@ class ElasticHandler(logging.Handler):
         backup_logs_path = os.path.join(os.getcwd(), '.python_elastic_logstash')
 
         try:
-            response = requests.post(url, json.dumps(log_entry), headers=headers).json()
+            raw_response = requests.post(url, json.dumps(log_entry), headers=headers)
+            print(f"raw: {raw_response}")
+            response = raw_response.json()
             if response.get('error'):
                 print('Elastic Search Error: ' + str(response['error']['reason']))
 
@@ -70,7 +73,8 @@ class ElasticHandler(logging.Handler):
                     requests.post(url, json.dumps(log_entry), headers=headers).json()
                     os.remove(backup_logs_path)
 
-        except Exception:
+        except Exception as e:
+            print(f"response: {e}")
             print('Unable to connect elastic host. Logstash will restore when available.')
             with open(backup_logs_path, 'a+') as fp:
                 fp.write("""{"index":{"_index":"%s","_id":"%s"}}""" % (self.elastic_index, str(uuid.uuid1())) + "\n")
